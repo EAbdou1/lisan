@@ -11,10 +11,21 @@ CHANNELS = 1
 
 
 class AudioCapture:
-    def __init__(self) -> None:
+    """Captures microphone audio into a WAV file.
+
+    Args:
+        device: Sounddevice device index to use. None = system default.
+    """
+
+    def __init__(self, device: int | None = None) -> None:
         self._recording: list[np.ndarray] = []
         self._is_recording = False
         self._stream: sd.InputStream | None = None
+        self._device = device
+
+    def set_device(self, device: int | None) -> None:
+        """Update the mic device. Takes effect on next start()."""
+        self._device = device
 
     def start(self) -> None:
         """Start buffering audio from mic."""
@@ -24,7 +35,7 @@ class AudioCapture:
         self._stream.start()
 
     def stop(self) -> Path:
-        """Stop stream, flush buffer, and save to temp wav file."""
+        """Stop buffering and save to temp WAV file."""
         self._is_recording = False
         if self._stream:
             self._stream.stop()
@@ -43,16 +54,17 @@ class AudioCapture:
             self._recording.append(indata.copy())
 
     def _make_stream(self) -> sd.InputStream:
-        """Create a sounddevice input stream."""
+        """Create a sounddevice input stream for the selected device."""
         return sd.InputStream(
             samplerate=SAMPLE_RATE,
             channels=CHANNELS,
             dtype="float32",
+            device=self._device,
             callback=lambda indata, frames, time, status: self.feed(indata),
         )
 
     def _save_wav(self, audio: np.ndarray) -> Path:
-        """Save numpy audio array to a temp wav file."""
+        """Save numpy audio array to a temp WAV file."""
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         with wave.open(tmp.name, "wb") as wav:
             wav.setnchannels(CHANNELS)
@@ -60,3 +72,21 @@ class AudioCapture:
             wav.setframerate(SAMPLE_RATE)
             wav.writeframes((audio * 32767).astype(np.int16).tobytes())
         return Path(tmp.name)
+
+
+def list_microphones() -> list[dict]:
+    """Return all available input devices.
+
+    Returns:
+        List of dicts with keys: index, name, channels.
+    """
+    devices = sd.query_devices()
+    return [
+        {
+            "index": i,
+            "name": d["name"],
+            "channels": d["max_input_channels"],
+        }
+        for i, d in enumerate(devices)
+        if d["max_input_channels"] > 0
+    ]

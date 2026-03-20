@@ -3,12 +3,12 @@ import json
 import threading
 import time
 
-from core.audio import AudioCapture
+from core.audio import AudioCapture, list_microphones
 from core.cleanup import clean
 from core.hotkey import HotkeyListener
 from core.inject import inject
 from core.transcribe import transcribe
-from config import get_settings
+from config import get_settings, save_runtime_settings
 from db.local import (
     delete_snippet as db_delete_snippet,
     get_history as db_get_history,
@@ -28,7 +28,7 @@ class LisanBridge:
 
     def __init__(self, window: object) -> None:
         self._window = window
-        self._audio = AudioCapture()
+        self._audio = AudioCapture(device=get_settings().mic_device)
         self._start_time: float = 0
         self._hotkey_listener: HotkeyListener | None = None
         init_db()
@@ -134,4 +134,24 @@ class LisanBridge:
             "hotkey": s.hotkey,
             "language": s.language,
             "cleanupMode": s.cleanup_mode,
+            "micDevice": s.mic_device,
         }
+
+    def save_settings(self, updates: dict) -> None:
+        """Persist runtime settings and apply them immediately."""
+        # Map camelCase keys from JS to snake_case for Python/JSON
+        key_map = {
+            "hotkey": "hotkey",
+            "language": "language",
+            "cleanupMode": "cleanup_mode",
+            "micDevice": "mic_device",
+        }
+        normalised = {key_map[k]: v for k, v in updates.items() if k in key_map}
+        save_runtime_settings(normalised)
+        # Apply mic change without restarting
+        if "mic_device" in normalised:
+            self._audio.set_device(normalised["mic_device"])
+
+    def get_microphones(self) -> list[dict]:
+        """Return all available input devices."""
+        return list_microphones()
