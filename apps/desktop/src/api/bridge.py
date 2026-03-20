@@ -28,7 +28,8 @@ class LisanBridge:
 
     def __init__(self, window: object) -> None:
         self._window = window
-        self._audio = AudioCapture(device=get_settings().mic_device)
+        settings = get_settings()
+        self._audio = AudioCapture(device=settings.mic_device)
         self._start_time: float = 0
         self._hotkey_listener: HotkeyListener | None = None
         init_db()
@@ -65,7 +66,6 @@ class LisanBridge:
         """Stop mic capture and kick off processing. Called on hotkey release."""
         duration = int(time.time() - self._start_time)
         self._notify("status", "transcribing")
-
         threading.Thread(
             target=self._process,
             args=(duration,),
@@ -128,30 +128,52 @@ class LisanBridge:
     # ── Settings ────────────────────────────────────────────────
 
     def get_settings(self) -> dict:
-        """Return current app settings."""
+        """Return current app settings including available mics."""
         s = get_settings()
         return {
             "hotkey": s.hotkey,
             "language": s.language,
             "cleanupMode": s.cleanup_mode,
             "micDevice": s.mic_device,
+            "microphones": list_microphones(),
         }
 
-    def save_settings(self, updates: dict) -> None:
-        """Persist runtime settings and apply them immediately."""
-        # Map camelCase keys from JS to snake_case for Python/JSON
-        key_map = {
-            "hotkey": "hotkey",
-            "language": "language",
-            "cleanupMode": "cleanup_mode",
-            "micDevice": "mic_device",
-        }
-        normalised = {key_map[k]: v for k, v in updates.items() if k in key_map}
-        save_runtime_settings(normalised)
-        if "mic_device" in normalised:
-            self._audio.set_device(normalised["mic_device"])
-        if "hotkey" in normalised and self._hotkey_listener:
-            self._hotkey_listener.restart(normalised["hotkey"])
+    def save_settings(
+        self,
+        hotkey: str | None = None,
+        language: str | None = None,
+        cleanup_mode: str | None = None,
+        mic_device: int | None = None,
+    ) -> None:
+        """Persist new settings and apply them immediately.
+
+        Args:
+            hotkey: New hotkey string e.g. 'alt+space'.
+            language: Transcription language e.g. 'ar', 'en', 'auto'.
+            cleanup_mode: One of 'light', 'aggressive', 'off'.
+            mic_device: Sounddevice device index, or None for system default.
+        """
+        updates: dict = {}
+
+        if hotkey is not None:
+            updates["hotkey"] = hotkey
+            if self._hotkey_listener:
+                self._hotkey_listener.restart(hotkey)
+
+        if language is not None:
+            updates["language"] = language
+
+        if cleanup_mode is not None:
+            updates["cleanup_mode"] = cleanup_mode
+
+        if mic_device is not None:
+            updates["mic_device"] = mic_device
+            self._audio.set_device(mic_device)
+
+        if updates:
+            save_runtime_settings(updates)
+
+        self._notify("status", "idle")
 
     def get_microphones(self) -> list[dict]:
         """Return all available input devices."""
