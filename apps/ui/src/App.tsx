@@ -30,7 +30,7 @@ export default function App() {
   // Temporary UI to verify everything works
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-[#0A0A0F] text-white">
-      <h1 className="text-2xl font-bold mb-4">لسان</h1>
+      <h1 className="text-2xl font-bold mb-4">LISAN</h1>
 
       <div className="text-sm text-gray-400 mb-6">
         Status: <span className="text-indigo-400">{status}</span>

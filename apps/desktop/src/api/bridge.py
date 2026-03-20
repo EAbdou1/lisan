@@ -3,21 +3,19 @@ import json
 import threading
 import time
 
-import sounddevice as sd
-
-from ..core.audio import AudioCapture
-from ..core.cleanup import clean
-from ..core.hotkey import HotkeyListener
-from ..core.inject import inject
-from ..core.transcribe import transcribe
-from ..config import get_settings
-from ..db.local import (
-    delete_snippet,
-    get_history,
-    get_snippets,
+from core.audio import AudioCapture
+from core.cleanup import clean
+from core.hotkey import HotkeyListener
+from core.inject import inject
+from core.transcribe import transcribe
+from config import get_settings
+from db.local import (
+    delete_snippet as db_delete_snippet,
+    get_history as db_get_history,
+    get_snippets as db_get_snippets,
     init_db,
     save_history,
-    save_snippet,
+    save_snippet as db_save_snippet,
 )
 
 
@@ -31,7 +29,6 @@ class LisanBridge:
     def __init__(self, window: object) -> None:
         self._window = window
         self._audio = AudioCapture()
-        self._stream: sd.InputStream | None = None
         self._start_time: float = 0
         self._hotkey_listener: HotkeyListener | None = None
         init_db()
@@ -62,16 +59,10 @@ class LisanBridge:
         """Start mic capture. Called on hotkey press."""
         self._audio.start()
         self._start_time = time.time()
-        self._stream = self._audio.get_stream()
-        self._stream.start()
         self._notify("status", "recording")
 
     def stop_recording(self) -> None:
         """Stop mic capture and kick off processing. Called on hotkey release."""
-        if self._stream:
-            self._stream.stop()
-            self._stream.close()
-
         duration = int(time.time() - self._start_time)
         self._notify("status", "transcribing")
 
@@ -89,7 +80,7 @@ class LisanBridge:
             raw = transcribe(audio_path)
 
             self._notify("status", "cleaning")
-            cleaned = clean(raw)
+            cleaned = clean(raw) or raw
 
             word_count = len(cleaned.split())
 
@@ -118,21 +109,21 @@ class LisanBridge:
 
     def get_history(self) -> list[dict]:
         """Return last 50 transcriptions."""
-        return get_history()
+        return db_get_history()
 
     # ── Snippets ────────────────────────────────────────────────
 
     def get_snippets(self) -> list[dict]:
         """Return all saved snippets."""
-        return get_snippets()
+        return db_get_snippets()
 
     def save_snippet(self, trigger: str, expansion: str) -> None:
         """Save or update a snippet."""
-        save_snippet(trigger, expansion)
+        db_save_snippet(trigger, expansion)
 
     def delete_snippet(self, snippet_id: int) -> None:
         """Delete a snippet by ID."""
-        delete_snippet(snippet_id)
+        db_delete_snippet(snippet_id)
 
     # ── Settings ────────────────────────────────────────────────
 

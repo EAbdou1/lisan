@@ -1,5 +1,6 @@
 """Text injection into the currently focused application."""
 import platform
+import time
 
 import pyperclip
 import pyautogui
@@ -15,6 +16,7 @@ def inject(text: str) -> None:
         text: The cleaned transcript to inject.
     """
     pyperclip.copy(text)
+    time.sleep(0.15)  # let target app reclaim focus before paste
 
     system = platform.system()
     if system == "Darwin":  # Mac

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from groq import Groq
 
-from ..config import get_settings
+from config import get_settings
 
 
 def transcribe(audio_path: Path) -> str:

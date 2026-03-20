@@ -1,6 +1,10 @@
 """Lisan desktop app entry point."""
-import webview
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+
+import webview
 from api.bridge import LisanBridge
 
 
@@ -9,13 +13,13 @@ def main() -> None:
     window = webview.create_window(
         title="LISAN",
         url="http://localhost:5173",  # Vite dev server
-        width=400,
-        height=620,
+        width=200,
+        height=200,
         resizable=False,
         frameless=True,
         on_top=True,
         transparent=True,
-        background_color="#00000000",
+        background_color="#000000",
     )
 
     bridge = LisanBridge(window)

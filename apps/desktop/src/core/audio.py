@@ -14,16 +14,27 @@ class AudioCapture:
     def __init__(self) -> None:
         self._recording: list[np.ndarray] = []
         self._is_recording = False
+        self._stream: sd.InputStream | None = None
 
     def start(self) -> None:
         """Start buffering audio from mic."""
         self._recording = []
         self._is_recording = True
+        self._stream = self._make_stream()
+        self._stream.start()
 
     def stop(self) -> Path:
-        """Stop buffering and save to temp wav file."""
+        """Stop stream, flush buffer, and save to temp wav file."""
         self._is_recording = False
-        audio = np.concatenate(self._recording, axis=0)
+        if self._stream:
+            self._stream.stop()
+            self._stream.close()
+            self._stream = None
+        audio = (
+            np.concatenate(self._recording, axis=0)
+            if self._recording
+            else np.zeros((160, 1), dtype="float32")
+        )
         return self._save_wav(audio)
 
     def feed(self, indata: np.ndarray) -> None:
@@ -31,7 +42,7 @@ class AudioCapture:
         if self._is_recording:
             self._recording.append(indata.copy())
 
-    def get_stream(self) -> sd.InputStream:
+    def _make_stream(self) -> sd.InputStream:
         """Create a sounddevice input stream."""
         return sd.InputStream(
             samplerate=SAMPLE_RATE,

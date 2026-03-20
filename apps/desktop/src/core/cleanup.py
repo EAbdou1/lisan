@@ -1,7 +1,7 @@
 """Groq LLM transcript cleanup module."""
 from groq import Groq
 
-from ..config import get_settings
+from config import get_settings
 
 SYSTEM_PROMPT = """You are a dictation cleanup assistant.
 Your job:
