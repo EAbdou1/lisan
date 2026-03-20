@@ -148,9 +148,10 @@ class LisanBridge:
         }
         normalised = {key_map[k]: v for k, v in updates.items() if k in key_map}
         save_runtime_settings(normalised)
-        # Apply mic change without restarting
         if "mic_device" in normalised:
             self._audio.set_device(normalised["mic_device"])
+        if "hotkey" in normalised and self._hotkey_listener:
+            self._hotkey_listener.restart(normalised["hotkey"])
 
     def get_microphones(self) -> list[dict]:
         """Return all available input devices."""

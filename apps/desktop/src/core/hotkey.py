@@ -25,7 +25,10 @@ class HotkeyListener:
         self._on_press = on_press
         self._on_release = on_release
         self._pressed = False
+        self._parse_hotkey(hotkey)
 
+    def _parse_hotkey(self, hotkey: str) -> None:
+        """Extract modifier and key from a hotkey string like 'alt+space'."""
         parts = hotkey.split("+")
         self._modifier = parts[0]
         self._key = parts[-1]
@@ -36,8 +39,20 @@ class HotkeyListener:
         keyboard.on_release_key(self._key, self._handle_release)
 
     def stop(self) -> None:
-        """Stop listening and clean up hooks."""
+        """Stop listening and clean up all hooks."""
         keyboard.unhook_all()
+        self._pressed = False
+
+    def restart(self, new_hotkey: str) -> None:
+        """Swap to a new hotkey combination without restarting the app.
+
+        Args:
+            new_hotkey: New key combination string e.g. 'ctrl+shift+space'.
+        """
+        self.stop()
+        self._hotkey = new_hotkey
+        self._parse_hotkey(new_hotkey)
+        self.start()
 
     def _handle_press(self, _: object) -> None:
         if keyboard.is_pressed(self._modifier) and not self._pressed:
