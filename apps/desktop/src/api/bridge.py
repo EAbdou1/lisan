@@ -8,6 +8,7 @@ from core.cleanup import clean
 from core.hotkey import HotkeyListener
 from core.inject import inject
 from core.transcribe import transcribe
+from core.tray import TrayIcon
 from config import get_settings, save_runtime_settings
 from db.local import (
     delete_snippet as db_delete_snippet,
@@ -28,6 +29,7 @@ class LisanBridge:
 
     def __init__(self, window: object) -> None:
         self._window = window
+        self._tray: TrayIcon | None = None
         settings = get_settings()
         self._audio = AudioCapture(device=settings.mic_device)
         self._start_time: float = 0
@@ -43,6 +45,8 @@ class LisanBridge:
         self._window.evaluate_js(  # type: ignore
             f"window.lisanEvent('{event}', {payload})"
         )
+        if event == "status" and self._tray:
+            self._tray.set_status(str(data))
 
     def _start_hotkey_listener(self) -> None:
         """Start listening for the global hotkey."""

@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import webview
 from api.bridge import LisanBridge
+from core.tray import TrayIcon
 
 
 def main() -> None:
@@ -32,6 +33,17 @@ def main() -> None:
     window.expose(bridge.save_snippet)
     window.expose(bridge.delete_snippet)
     window.expose(bridge.get_settings)
+    window.expose(bridge.save_settings)
+
+    tray = TrayIcon(
+        on_open=lambda: window.show(),
+        on_settings=lambda: window.evaluate_js(
+            "window.lisanEvent('navigate', 'settings')"
+        ),
+        on_quit=lambda: window.destroy(),
+    )
+    bridge._tray = tray
+    tray.start()
 
     webview.start(debug=True)
 
