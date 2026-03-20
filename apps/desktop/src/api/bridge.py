@@ -24,27 +24,34 @@ class LisanBridge:
     """All public methods are callable from React via window.pywebview.api.
 
     Args:
-        window: The pywebview window instance.
+        mini: The mini pywebview window instance.
+        dashboard: The dashboard pywebview window instance.
     """
 
-    def __init__(self, window: object) -> None:
-        self._window = window
+    def __init__(self, mini: object, dashboard: object) -> None:
+        self._mini = mini
+        self._dashboard = dashboard
         self._tray: TrayIcon | None = None
         settings = get_settings()
         self._audio = AudioCapture(device=settings.mic_device)
         self._start_time: float = 0
         self._hotkey_listener: HotkeyListener | None = None
+        self._hide_timer: threading.Timer | None = None
         init_db()
         self._start_hotkey_listener()
 
     # ── Internal ────────────────────────────────────────────────
 
+    def set_tray(self, tray: TrayIcon) -> None:
+        """Inject tray reference after construction."""
+        self._tray = tray
+
     def _notify(self, event: str, data: object) -> None:
-        """Push an event to React via JS evaluation."""
+        """Push event to both windows."""
         payload = json.dumps(data)
-        self._window.evaluate_js(  # type: ignore
-            f"window.lisanEvent('{event}', {payload})"
-        )
+        js = f"window.lisanEvent('{event}', {payload})"
+        self._mini.evaluate_js(js)        # type: ignore
+        self._dashboard.evaluate_js(js)   # type: ignore
         if event == "status" and self._tray:
             self._tray.set_status(str(data))
 
@@ -61,7 +68,13 @@ class LisanBridge:
     # ── Recording ───────────────────────────────────────────────
 
     def start_recording(self) -> None:
-        """Start mic capture. Called on hotkey press."""
+        """Show mini window and start recording."""
+        # Cancel any pending hide
+        if self._hide_timer:
+            self._hide_timer.cancel()
+            self._hide_timer = None
+
+        self._mini.show()                  # type: ignore
         self._audio.start()
         self._start_time = time.time()
         self._notify("status", "recording")
@@ -77,7 +90,7 @@ class LisanBridge:
         ).start()
 
     def _process(self, duration: int) -> None:
-        """Full pipeline: audio → Whisper → Llama → inject."""
+        """Full pipeline: audio → Whisper → Llama → inject → hide after 5s."""
         try:
             audio_path = self._audio.stop()
 
@@ -105,9 +118,20 @@ class LisanBridge:
             })
             self._notify("status", "idle")
 
+            # Hide mini window after 5 seconds
+            self._hide_timer = threading.Timer(5.0, self._hide_mini)
+            self._hide_timer.start()
+
         except Exception as e:  # noqa: BLE001
             self._notify("error", str(e))
             self._notify("status", "idle")
+            self._hide_timer = threading.Timer(5.0, self._hide_mini)
+            self._hide_timer.start()
+
+    def _hide_mini(self) -> None:
+        """Hide the mini window and reset timer."""
+        self._mini.hide()                  # type: ignore
+        self._hide_timer = None
 
     # ── History ─────────────────────────────────────────────────
 
