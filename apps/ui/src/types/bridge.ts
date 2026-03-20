@@ -5,6 +5,9 @@ export type AppStatus =
   | "cleaning"
   | "error";
 
+export type Language = "auto" | "ar" | "en";
+export type CleanupMode = "light" | "aggressive" | "off";
+
 export interface Transcript {
   raw: string;
   cleaned: string;
@@ -30,13 +33,27 @@ export interface Snippet {
   created_at: string;
 }
 
-export interface AppSettings {
-  hotkey: string;
-  language: string;
-  cleanupMode: string;
+export interface Microphone {
+  index: number;
+  name: string;
+  channels: number;
 }
 
-// The pywebview bridge — all methods return Promises
+export interface AppSettings {
+  hotkey: string;
+  language: Language;
+  cleanupMode: CleanupMode;
+  micDevice: number | null;
+  microphones: Microphone[];
+}
+
+export interface SaveSettingsPayload {
+  hotkey?: string;
+  language?: Language;
+  cleanup_mode?: CleanupMode;
+  mic_device?: number | null;
+}
+
 export interface PyWebviewAPI {
   start_recording: () => Promise<void>;
   stop_recording: () => Promise<void>;
@@ -45,9 +62,9 @@ export interface PyWebviewAPI {
   save_snippet: (trigger: string, expansion: string) => Promise<void>;
   delete_snippet: (id: number) => Promise<void>;
   get_settings: () => Promise<AppSettings>;
+  save_settings: (payload: SaveSettingsPayload) => Promise<void>;
 }
 
-// Augment the global window object
 declare global {
   interface Window {
     pywebview: { api: PyWebviewAPI };

@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { useLisanStore } from "../store";
 import type { AppStatus, Transcript } from "../types/bridge";
+import type { Tab } from "../store";
 
 export function useLisanEvents() {
   const { setStatus, setTranscript, setError } = useLisanStore();
 
   useEffect(() => {
-    // Global handler Python calls via window.lisanEvent()
     window.lisanEvent = (event: string, data: unknown) => {
       switch (event) {
         case "status":
@@ -21,13 +21,16 @@ export function useLisanEvents() {
           setError(data as string);
           break;
 
+        case "navigate":
+          useLisanStore.getState().setActiveTab(data as Tab);
+          break;
+
         default:
           console.warn("Unknown lisan event:", event, data);
       }
     };
 
     return () => {
-      // Cleanup — replace with no-op on unmount
       window.lisanEvent = () => {};
     };
   }, [setStatus, setTranscript, setError]);
